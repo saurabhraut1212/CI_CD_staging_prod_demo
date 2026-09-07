@@ -46,3 +46,19 @@ jobs:
           push: true
           platforms: linux/arm64
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/cicd-staging-prod-demo:latest
+  deploy-staging:
+    needs: build-and-push
+    if: github.ref == 'refs/heads/staging' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to staging server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            sudo docker pull <your-dockerhub-username>/cicd-staging-prod-demo:latest
+            sudo docker stop my-app || true
+            sudo docker rm my-app || true
+            sudo docker run -d -p 80:80 --name my-app <your-dockerhub-username>/cicd-staging-prod-demo:latest
