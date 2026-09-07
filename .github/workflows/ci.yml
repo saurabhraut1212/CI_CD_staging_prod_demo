@@ -23,3 +23,59 @@ jobs:
         run: npm run lint
       - name: Run build
         run: npm run build
+  build-and-push:
+    needs: build-and-lint
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/arm64
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/cicd-staging-prod-demo:latest
+  deploy-staging:
+    needs: build-and-push
+    if: github.ref == 'refs/heads/staging' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to staging server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            sudo docker pull saurabhraut123/cicd-staging-prod-demo:latest
+            sudo docker stop my-app || true
+            sudo docker rm my-app || true
+            sudo docker run -d -p 80:80 --name my-app saurabhraut123/cicd-staging-prod-demo:latest
+  deploy-production:
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy to production server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            sudo docker pull saurabhraut123/cicd-staging-prod-demo:latest
+            sudo docker stop my-app || true
+            sudo docker rm my-app || true
+            sudo docker run -d -p 80:80 --name my-app saurabhraut123/cicd-staging-prod-demo:latest
