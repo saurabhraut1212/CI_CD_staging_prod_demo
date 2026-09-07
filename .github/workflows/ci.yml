@@ -75,7 +75,7 @@ jobs:
           username: ${{ secrets.PROD_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
           script: |
-            sudo docker pull <your-dockerhub-username>/cicd-staging-prod-demo:latest
+            sudo docker pull saurabhraut123/cicd-staging-prod-demo:latest
             sudo docker stop my-app || true
             sudo docker rm my-app || true
-            sudo docker run -d -p 80:80 --name my-app <your-dockerhub-username>/cicd-staging-prod-demo:latest
+            sudo docker run -d -p 80:80 --name my-app saurabhraut123/cicd-staging-prod-demo:latest
